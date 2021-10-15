@@ -1,0 +1,104 @@
+Link tinkercad: https://www.tinkercad.com/things/ezn53HWgAR2-daring-blad/editel?sharecode=8NxseeVjrVakPza2HOzmtwdxLKoXgG4HSuR6jQUZojE
+
+
+#include <LiquidCrystal.h>
+
+const int rs = 8, en = 9, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+unsigned short secunde=0, miliSecunde=0, minute=40, ore=15;
+
+
+unsigned int numar_CAN;
+int voltageValue, temperatureRead, temperatureReadOld = -999;
+unsigned int temp;
+void setup()
+{
+  DDRD |= 0xFF;
+  DDRB|=0x03;
+  lcd.begin(0, 2);
+  
+  TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
+
+    //Formula pentru OCR1A: 
+    //OCR1A = [16000000Hz/(1024*1Hz)]-1
+    OCR1A = 15624;
+
+    TCCR1B |= (1 << WGM12); //Mod CTC
+    TCCR1B |= (1 << CS12) | (1 << CS10); //Prescaler 1024
+    TIMSK1 |= (1 << OCIE1A); //Setare flag match
+  DDRC&=~0x10;
+  DDRD=B00001111;
+  adc_init();
+  lcd.print("Ora:");
+  lcd.setCursor(0,1);
+  lcd.print("Temp = ");
+  Afis();
+ 
+  
+}
+void Print0(int nr){
+ if(nr < 10 && nr > 0) lcd.print('0');
+}
+void Afis(){
+   
+  lcd.setCursor(4,0);
+  Print0(ore);
+  lcd.print(ore);
+  lcd.print(':');
+  Print0(minute);
+  lcd.print(minute);
+  lcd.print(':');
+  Print0(secunde);
+  lcd.print(secunde); 
+     numar_CAN=read_adc(4);
+     temp=read_adc(5);
+     voltageValue=(temp*5000.0)/1024.0;
+     temperatureRead=(voltageValue-500)/10;
+  if( temperatureRead == temperatureReadOld) return;
+    else lcd.setCursor(7,1);
+     Print0(temperatureRead);
+     lcd.print(temperatureRead);
+     lcd.print("'C");
+}
+void loop(){
+ 
+ 
+    
+}
+ISR(TIMER1_COMPA_vect){
+
+     
+   ++secunde;
+ 
+  if(secunde ==  60){
+    ++minute;
+    secunde = 0;
+  }
+  if(minute == 60){
+   ++ore;
+    minute = 0;
+  }
+  if(ore == 24) 
+    ore = 0;
+    Afis();
+    
+}
+void adc_init() //adc initialization
+{
+  //set division factor between system clock frequency and the input clock to the ADC- 128
+  ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
+  ADMUX|=(1<<REFS0); //AVcc with external capacitor at Aref pin 
+  ADCSRA|=(1<<ADEN); //enable ADC
+  ADCSRA|=(1<<ADSC); //ADC start conversion
+}
+
+uint16_t read_adc(uint8_t channel)
+{
+  ADMUX&=0xF0; //set input AO to A5
+  ADMUX|=channel; //select chanel AO to A5
+  ADCSRA|=(1<<ADSC); //start conversion
+  while(ADCSRA & (1<<ADSC)); //wait while adc conversion are not updated 
+  return ADCW; //read and return voltage
+}
