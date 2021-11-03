@@ -1,0 +1,374 @@
+#include <LiquidCrystal.h>
+
+#define BUTTON_OK 6
+#define BUTTON_CANCEL 7
+#define BUTTON_PREV 8
+#define BUTTON_NEXT 9
+
+enum Buttons {
+  EV_OK,
+  EV_CANCEL,
+  EV_NEXT,
+  EV_PREV,
+  EV_NONE,
+  EV_MAX_NUM
+};
+
+enum Menus {
+  MENU_MAIN = 0,
+  MENU_START,
+  MENU_KP,
+  MENU_KI,
+  MENU_KD,
+  MENU_TEMP,
+  MENU_TINCAL,
+  MENU_TMEN,
+  MENU_TRAC,
+  MENU_MAX_NUM
+};
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+unsigned int numar_CAN;
+int voltageValue, temperatureRead;
+unsigned int temp;
+int tincal=4;
+double tset=36.6;
+int tmen=3;
+int trac=2;
+float temp_q = 0;
+Menus scroll_menu = MENU_MAIN;
+Menus current_menu =  MENU_MAIN;
+double kp = 1, ki = 0.1, kd = 0.1; // exemplu valori
+double afisare;
+  double eroare= 0;
+
+ int suma_erori= 0;
+
+  double eroare_anterioara = 0;
+
+  double derivativa = 0;
+
+  double dt; // timp esantionare
+
+  double setpoint = 30;
+ double output;
+ float temperatura_citita_senzor;
+ 
+void state_machine(enum Menus menu, enum Buttons button);
+Buttons GetButtons(void);
+void print_menu(enum Menus menu);
+
+typedef void (state_machine_handler_t)(void);
+
+void print_menu(enum Menus menu)
+{
+  lcd.clear();
+  switch(menu)
+  {  case MENU_MAIN:
+   		lcd.print("Meniu-P:");
+        lcd.setCursor(0,1);
+      lcd.print("ALEGE program:");
+   		break;
+    case MENU_START:
+         lcd.print("Meniu-P:");
+         lcd.setCursor(0,1);
+         lcd.print("START program:");
+   ////////////////////////////////////////       
+          delay(3000);
+          lcd.clear();
+   ///////daca apas ok confirmare... si valori
+ 
+      //   lcd.print("Confirmare...");
+       //  delay(2000);
+      //   lcd.clear();
+     //    lcd.setCursor(0,0);
+    //     lcd.print("Tinc:");
+     //    lcd.print(tincal);
+     //    lcd.setCursor(0,1);
+    //     lcd.print("T:");
+     //    lcd.print(temp);
+     //    lcd.print(" ");
+     //    lcd.print("TS:");
+     //    lcd.print(tset);
+    
+    	 break;
+    case MENU_KP:
+    	lcd.print(kp);
+        lcd.setCursor(0,1);
+    	lcd.print("Const KP");
+    	break;
+    case MENU_KI:
+    	lcd.print(ki);
+        lcd.setCursor(0,1);
+        lcd.print("Const KI");
+    	break;
+    case MENU_KD:
+    	lcd.print(kd);
+   	    lcd.setCursor(0,1);
+        lcd.print("Const KD");
+    	break;
+    case MENU_TINCAL:
+    	lcd.print(tincal);
+  	    lcd.setCursor(0,1);
+        lcd.print("Timp incalzire");
+    	break;
+    case MENU_TMEN:
+    	lcd.print(tmen);
+        lcd.setCursor(0,1);
+        lcd.print("Temp.ment");
+    	break;
+    case MENU_TRAC:
+    	lcd.print(trac);
+        lcd.setCursor(0,1);
+        lcd.print("Timp racire");
+    	break;
+    case MENU_TEMP:
+    	lcd.print(temperatureRead);
+        lcd.setCursor(0,1);
+        lcd.print("TEMPERATURA");
+    	break;
+    default:
+    	lcd.print("Stare sistem:");
+        lcd.setCursor(0,1);
+        lcd.print(afisare);
+   		break;
+  }
+  if(current_menu != MENU_MAIN)
+  {
+  	lcd.setCursor(0,1);
+  	lcd.print("ModificareParam");
+  }
+}
+
+void enter_menu(void)
+{
+  current_menu = scroll_menu;
+}
+
+void go_home(void)
+{
+  scroll_menu = MENU_MAIN;
+  current_menu = scroll_menu;
+}
+
+void go_next(void)
+{
+  scroll_menu = (Menus) ((int)scroll_menu + 1);
+  scroll_menu = (Menus) ((int)scroll_menu % MENU_MAX_NUM);
+}
+
+void go_prev(void)
+{
+  scroll_menu = (Menus) ((int)scroll_menu - 1);
+  scroll_menu = (Menus) ((int)scroll_menu % MENU_MAX_NUM);
+}
+
+void save_kp(void)
+{
+}
+
+void inc_kp(void)
+{
+  kp++;
+}
+
+void dec_kp(void)
+{
+  kp--;
+}
+void inc_ki(void)
+{
+  ki++;
+}
+
+void dec_ki(void)
+{
+  ki--;
+}
+void inc_kd(void)
+{
+  kd++;
+}
+
+void dec_kd(void)
+{
+  kd--;
+}
+void cancel_KP(void)
+{
+}
+void cancel_KI(void)
+{
+}
+void cancel_KD(void)
+{
+}
+
+void cancel_Temp(void)
+{
+}
+void save_temp(void)
+{
+}
+
+void inc_temp(void)
+{
+  temperatureRead++;///temp?
+}
+
+void dec_temp(void)
+{
+  temperatureRead--;///temp?
+}
+void cancel_tIncal(void)
+{
+}
+void cancel_tMen(void)
+{
+}
+void cancel_tRac(void)
+{
+}
+void inc_tIncal(void)
+{  tincal++;
+}
+void inc_tMen(void)
+{ tmen++;
+}
+void inc_tRac(void)
+{ trac++;
+}
+void dec_tIncal(void)
+{ tincal--;
+}
+void dec_tMen(void)
+{ tmen--;
+}
+void dec_tRac(void)
+{ trac--;
+} 
+void save(void)
+{
+}
+void confirmare(void)
+{
+}
+
+state_machine_handler_t* sm[MENU_MAX_NUM][EV_MAX_NUM] =
+{ //events: OK , CANCEL , NEXT, PREV
+  {enter_menu, go_home, go_next, go_prev},        // MENU_MAIN
+  {confirmare, go_home, go_next ,go_prev},        // MENU_START
+  {save, cancel_KP, inc_kp, dec_kp},              // MENU_KP
+  {save, cancel_KI, inc_ki, dec_ki},              // MENU_Ki
+  {save, cancel_KD, inc_kd, dec_kd},              // MENU_Kd
+  {save, cancel_Temp, inc_temp, dec_temp},        // MENU_TEMP
+  {save, cancel_tIncal, inc_tIncal, dec_tIncal},  // MENU_TINCAL
+  {save, cancel_tMen, inc_tMen, dec_tMen},        // MENU_TMEN
+  {save, cancel_tRac, inc_tRac, dec_tRac}         // MENU_TRAC
+};
+
+void state_machine(enum Menus menu, enum Buttons button)
+{
+  sm[menu][button]();
+}
+
+Buttons GetButtons(void)
+{
+  enum Buttons ret_val = EV_NONE;
+  if (digitalRead(BUTTON_OK))
+  {
+    ret_val = EV_OK;
+  }
+  else if (digitalRead(BUTTON_CANCEL))
+  {
+    ret_val = EV_CANCEL;
+  }
+  else if (digitalRead(BUTTON_NEXT))
+  {
+    ret_val = EV_NEXT;
+  }
+  else if (digitalRead(BUTTON_PREV))
+  {
+    ret_val = EV_PREV;
+  }
+  Serial.print(ret_val);
+  return ret_val;
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  lcd.begin(16,2);
+  pinMode(6, INPUT);
+  digitalWrite(6, LOW); // pull-down
+    pinMode(7, INPUT);
+  digitalWrite(7, LOW); // pull-down
+    pinMode(8, INPUT);
+  digitalWrite(8, LOW); // pull-down
+    pinMode(9, INPUT);
+  digitalWrite(9, LOW); // pull-down
+   adc_init();
+}
+void Print0(int nr){
+ if(nr < 10 && nr > 0) lcd.print('0');
+}
+int Afis(float temperatura_citita_senzor){
+   
+ // lcd.setCursor(4,0);
+//  Print0(ore);
+  //lcd.print(ore);
+ // lcd.print(':');
+ // Print0(minute);
+//  lcd.print(minute);
+  //lcd.print(':');
+//  Print0(secunde);
+  //lcd.print(secunde); 
+     numar_CAN=read_adc(4);
+     temp=read_adc(5);
+     voltageValue=(temp*5000.0)/1024.0;
+     temperatureRead=(voltageValue-500)/10;
+    return temperatureRead;
+    
+}
+void adc_init() //adc initialization
+{
+  //set division factor between system clock frequency and the input clock to the ADC- 128
+  ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
+  ADMUX|=(1<<REFS0); //AVcc with external capacitor at Aref pin 
+  ADCSRA|=(1<<ADEN); //enable ADC
+  ADCSRA|=(1<<ADSC); //ADC start conversion
+}
+
+uint16_t read_adc(uint8_t channel)
+{
+  ADMUX&=0xF0; //set input AO to A5
+  ADMUX|=channel; //select chanel AO to A5
+  ADCSRA|=(1<<ADSC); //start conversion
+  while(ADCSRA & (1<<ADSC)); //wait while adc conversion are not updated 
+  return ADCW; //read and return voltage
+}
+int PID(void)
+{ eroare = setpoint - Afis(temperatura_citita_senzor);
+  suma_erori= suma_erori + eroare * dt;
+  derivativa = (eroare - eroare_anterioara) / dt;
+  output = (kp * eroare) + (ki * suma_erori ) + (kd * derivativa);
+  eroare_anterioara = eroare;
+ if(output>255)
+ {
+   output=255;
+ }
+ else if (output<0)
+ {
+   output=0;
+ }
+} 
+void loop()
+{ 
+  volatile Buttons event = GetButtons();
+  if (event != EV_NONE)
+  {
+    state_machine(current_menu, event);
+  }
+    print_menu(scroll_menu);
+    delay(1000);
+  analogWrite(10,random(255));
+}
